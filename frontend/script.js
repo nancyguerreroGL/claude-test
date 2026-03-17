@@ -122,10 +122,18 @@ function addMessage(content, type, sources = null, isWelcome = false) {
     let html = `<div class="message-content">${displayContent}</div>`;
     
     if (sources && sources.length > 0) {
+        const sourcesHtml = sources.map(s => {
+            const [label, url] = s.split('||');
+            const lessonMatch = label.match(/Lesson\s+(\d+)$/i);
+            const chipLabel = lessonMatch ? `Lesson ${lessonMatch[1]}` : label;
+            return url
+                ? `<a class="source-chip" href="${url}" target="_blank" rel="noopener noreferrer">${chipLabel}</a>`
+                : `<span class="source-chip">${chipLabel}</span>`;
+        }).join('');
         html += `
             <details class="sources-collapsible">
                 <summary class="sources-header">Sources</summary>
-                <div class="sources-content">${sources.join(', ')}</div>
+                <div class="sources-content">${sourcesHtml}</div>
             </details>
         `;
     }

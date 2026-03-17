@@ -1,6 +1,20 @@
 import warnings
 warnings.filterwarnings("ignore", message="resource_tracker: There appear to be.*")
 
+# Disable SSL verification for corporate proxy environments
+import ssl
+ssl._create_default_https_context = ssl._create_unverified_context
+
+import requests
+_original_request = requests.Session.request
+def _patched_request(self, method, url, **kwargs):
+    kwargs.setdefault('verify', False)
+    return _original_request(self, method, url, **kwargs)
+requests.Session.request = _patched_request
+
+
+warnings.filterwarnings("ignore", message="Unverified HTTPS request.*")
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
