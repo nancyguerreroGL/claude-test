@@ -2,15 +2,16 @@
 Tests for CourseSearchTool.execute() and ToolManager.
 VectorStore is fully mocked — no real ChromaDB calls.
 """
+
 import pytest
 from unittest.mock import MagicMock
 from search_tools import CourseSearchTool, ToolManager
 from vector_store import SearchResults
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture
 def mock_store():
@@ -26,11 +27,17 @@ def _empty_results():
     return SearchResults(documents=[], metadata=[], distances=[], error=None)
 
 
-def _one_result(doc="Content about MCP.", course="MCP Course", lesson=2,
-                link="https://example.com/lesson2"):
+def _one_result(
+    doc="Content about MCP.",
+    course="MCP Course",
+    lesson=2,
+    link="https://example.com/lesson2",
+):
     return SearchResults(
         documents=[doc],
-        metadata=[{"course_title": course, "lesson_number": lesson, "lesson_link": link}],
+        metadata=[
+            {"course_title": course, "lesson_number": lesson, "lesson_link": link}
+        ],
         distances=[0.1],
         error=None,
     )
@@ -40,9 +47,13 @@ def _one_result(doc="Content about MCP.", course="MCP Course", lesson=2,
 # execute() — error path
 # ---------------------------------------------------------------------------
 
+
 def test_execute_returns_error_string_when_store_returns_error(search_tool, mock_store):
     mock_store.search.return_value = SearchResults(
-        documents=[], metadata=[], distances=[], error="Search error: collection is empty"
+        documents=[],
+        metadata=[],
+        distances=[],
+        error="Search error: collection is empty",
     )
     result = search_tool.execute(query="what is MCP")
     assert result == "Search error: collection is empty"
@@ -51,6 +62,7 @@ def test_execute_returns_error_string_when_store_returns_error(search_tool, mock
 # ---------------------------------------------------------------------------
 # execute() — empty results path
 # ---------------------------------------------------------------------------
+
 
 def test_execute_returns_no_content_message_when_results_empty(search_tool, mock_store):
     mock_store.search.return_value = _empty_results()
@@ -72,7 +84,9 @@ def test_execute_no_content_message_includes_lesson_filter(search_tool, mock_sto
 
 def test_execute_no_content_message_includes_both_filters(search_tool, mock_store):
     mock_store.search.return_value = _empty_results()
-    result = search_tool.execute(query="activations", course_name="Deep Learning", lesson_number=3)
+    result = search_tool.execute(
+        query="activations", course_name="Deep Learning", lesson_number=3
+    )
     assert "in course 'Deep Learning'" in result
     assert "in lesson 3" in result
 
@@ -80,6 +94,7 @@ def test_execute_no_content_message_includes_both_filters(search_tool, mock_stor
 # ---------------------------------------------------------------------------
 # execute() — successful results formatting
 # ---------------------------------------------------------------------------
+
 
 def test_execute_formats_header_with_course_and_lesson(search_tool, mock_store):
     mock_store.search.return_value = _one_result()
@@ -91,7 +106,9 @@ def test_execute_formats_header_with_course_and_lesson(search_tool, mock_store):
 def test_execute_formats_header_without_lesson_number(search_tool, mock_store):
     mock_store.search.return_value = SearchResults(
         documents=["Some content."],
-        metadata=[{"course_title": "MCP Course", "lesson_number": None, "lesson_link": ""}],
+        metadata=[
+            {"course_title": "MCP Course", "lesson_number": None, "lesson_link": ""}
+        ],
         distances=[0.1],
         error=None,
     )
@@ -100,7 +117,9 @@ def test_execute_formats_header_without_lesson_number(search_tool, mock_store):
     assert "- Lesson" not in result
 
 
-def test_execute_formats_multiple_results_separated_by_blank_line(search_tool, mock_store):
+def test_execute_formats_multiple_results_separated_by_blank_line(
+    search_tool, mock_store
+):
     mock_store.search.return_value = SearchResults(
         documents=["Doc A.", "Doc B."],
         metadata=[
@@ -120,19 +139,23 @@ def test_execute_formats_multiple_results_separated_by_blank_line(search_tool, m
 # execute() — source tracking
 # ---------------------------------------------------------------------------
 
+
 def test_execute_populates_last_sources_with_link(search_tool, mock_store):
-    mock_store.search.return_value = _one_result(
-        link="https://example.com/lesson2"
-    )
+    mock_store.search.return_value = _one_result(link="https://example.com/lesson2")
     search_tool.execute(query="test")
     assert len(search_tool.last_sources) == 1
-    assert search_tool.last_sources[0] == "MCP Course - Lesson 2||https://example.com/lesson2"
+    assert (
+        search_tool.last_sources[0]
+        == "MCP Course - Lesson 2||https://example.com/lesson2"
+    )
 
 
 def test_execute_populates_last_sources_without_link(search_tool, mock_store):
     mock_store.search.return_value = SearchResults(
         documents=["Doc."],
-        metadata=[{"course_title": "MCP Course", "lesson_number": 1, "lesson_link": ""}],
+        metadata=[
+            {"course_title": "MCP Course", "lesson_number": 1, "lesson_link": ""}
+        ],
         distances=[0.1],
         error=None,
     )
@@ -143,7 +166,9 @@ def test_execute_populates_last_sources_without_link(search_tool, mock_store):
 def test_execute_populates_last_sources_without_lesson_number(search_tool, mock_store):
     mock_store.search.return_value = SearchResults(
         documents=["Doc."],
-        metadata=[{"course_title": "MCP Course", "lesson_number": None, "lesson_link": ""}],
+        metadata=[
+            {"course_title": "MCP Course", "lesson_number": None, "lesson_link": ""}
+        ],
         distances=[0.1],
         error=None,
     )
@@ -154,6 +179,7 @@ def test_execute_populates_last_sources_without_lesson_number(search_tool, mock_
 # ---------------------------------------------------------------------------
 # execute() — filter delegation to store
 # ---------------------------------------------------------------------------
+
 
 def test_execute_passes_all_filters_to_store(search_tool, mock_store):
     mock_store.search.return_value = _empty_results()
@@ -166,6 +192,7 @@ def test_execute_passes_all_filters_to_store(search_tool, mock_store):
 # ---------------------------------------------------------------------------
 # Tool definition
 # ---------------------------------------------------------------------------
+
 
 def test_get_tool_definition_name_is_search_course_content(search_tool):
     defn = search_tool.get_tool_definition()
@@ -180,6 +207,7 @@ def test_get_tool_definition_query_is_required(search_tool):
 # ---------------------------------------------------------------------------
 # ToolManager
 # ---------------------------------------------------------------------------
+
 
 def test_tool_manager_execute_unknown_tool_returns_error_string():
     manager = ToolManager()

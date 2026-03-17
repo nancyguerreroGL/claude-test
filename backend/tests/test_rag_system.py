@@ -2,14 +2,15 @@
 Tests for RAGSystem.query() end-to-end.
 AIGenerator, VectorStore, and DocumentProcessor are all mocked.
 """
+
 import pytest
 from unittest.mock import MagicMock, patch
 from rag_system import RAGSystem
 
-
 # ---------------------------------------------------------------------------
 # Config fixture
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture
 def mock_config():
@@ -29,11 +30,14 @@ def mock_config():
 # RAGSystem fixture — all heavy deps mocked
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture
 def rag_and_mocks(mock_config):
-    with patch("rag_system.AIGenerator") as ai_cls, \
-         patch("rag_system.VectorStore") as vs_cls, \
-         patch("rag_system.DocumentProcessor"):
+    with (
+        patch("rag_system.AIGenerator") as ai_cls,
+        patch("rag_system.VectorStore") as vs_cls,
+        patch("rag_system.DocumentProcessor"),
+    ):
 
         mock_ai = MagicMock()
         ai_cls.return_value = mock_ai
@@ -48,6 +52,7 @@ def rag_and_mocks(mock_config):
 # ---------------------------------------------------------------------------
 # query() — basic return values
 # ---------------------------------------------------------------------------
+
 
 def test_query_returns_response_string(rag_and_mocks):
     rag, mock_ai, _ = rag_and_mocks
@@ -67,18 +72,22 @@ def test_query_returns_sources_list(rag_and_mocks):
 # query() — prompt wrapping
 # ---------------------------------------------------------------------------
 
+
 def test_query_wraps_user_question_in_prompt(rag_and_mocks):
     rag, mock_ai, _ = rag_and_mocks
     mock_ai.generate_response.return_value = "ok"
     rag.query("what is MCP?")
     call_kwargs = mock_ai.generate_response.call_args[1]
-    assert call_kwargs["query"].startswith("Answer this question about course materials:")
+    assert call_kwargs["query"].startswith(
+        "Answer this question about course materials:"
+    )
     assert "what is MCP?" in call_kwargs["query"]
 
 
 # ---------------------------------------------------------------------------
 # query() — tool plumbing
 # ---------------------------------------------------------------------------
+
 
 def test_query_passes_tool_definitions_to_ai(rag_and_mocks):
     rag, mock_ai, _ = rag_and_mocks
@@ -109,6 +118,7 @@ def test_query_tool_definitions_include_search_course_content(rag_and_mocks):
 # ---------------------------------------------------------------------------
 # query() — session / conversation history
 # ---------------------------------------------------------------------------
+
 
 def test_query_no_session_passes_none_history(rag_and_mocks):
     rag, mock_ai, _ = rag_and_mocks
@@ -152,6 +162,7 @@ def test_query_without_session_does_not_create_history(rag_and_mocks):
 # query() — source management
 # ---------------------------------------------------------------------------
 
+
 def test_query_resets_sources_after_retrieval(rag_and_mocks):
     rag, mock_ai, _ = rag_and_mocks
     mock_ai.generate_response.return_value = "ok"
@@ -176,6 +187,7 @@ def test_query_returns_sources_populated_by_search_tool(rag_and_mocks):
 # Bug 1 regression: exception from AIGenerator propagates (not swallowed)
 # ---------------------------------------------------------------------------
 
+
 def test_query_propagates_ai_generator_exception(rag_and_mocks):
     """
     When AIGenerator raises (e.g., invalid model ID), RAGSystem.query()
@@ -193,6 +205,7 @@ def test_query_propagates_ai_generator_exception(rag_and_mocks):
 # ---------------------------------------------------------------------------
 # add_course_folder — non-existent path
 # ---------------------------------------------------------------------------
+
 
 def test_add_course_folder_returns_zero_for_nonexistent_path(rag_and_mocks):
     rag, _, _ = rag_and_mocks

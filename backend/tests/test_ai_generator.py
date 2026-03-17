@@ -2,14 +2,15 @@
 Tests for AIGenerator.generate_response() and _handle_tool_execution().
 The Anthropic client is fully mocked — no real API calls.
 """
+
 import pytest
 from unittest.mock import MagicMock, patch
 from ai_generator import AIGenerator
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def make_text_response(text="Answer"):
     """Mock a Claude response with stop_reason=end_turn and a text block."""
@@ -39,6 +40,7 @@ def make_tool_use_response(name="search_course_content", tool_id="tu_1", inp=Non
 # Fixture
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture
 def generator_and_client():
     with patch("ai_generator.anthropic.Anthropic") as mock_cls:
@@ -51,6 +53,7 @@ def generator_and_client():
 # ---------------------------------------------------------------------------
 # Direct (no-tool) response path
 # ---------------------------------------------------------------------------
+
 
 def test_direct_response_returned_when_no_tool_use(generator_and_client):
     gen, client = generator_and_client
@@ -81,7 +84,9 @@ def test_tools_added_to_params_when_provided(generator_and_client):
 def test_conversation_history_appended_to_system_prompt(generator_and_client):
     gen, client = generator_and_client
     client.messages.create.return_value = make_text_response()
-    gen.generate_response("follow up", conversation_history="User: hello\nAssistant: hi")
+    gen.generate_response(
+        "follow up", conversation_history="User: hello\nAssistant: hi"
+    )
     call_kwargs = client.messages.create.call_args[1]
     assert "Previous conversation:" in call_kwargs["system"]
     assert "User: hello" in call_kwargs["system"]
@@ -101,6 +106,7 @@ def test_model_and_temperature_in_api_params(generator_and_client):
 # Tool-use path
 # ---------------------------------------------------------------------------
 
+
 def test_tool_use_response_triggers_second_api_call(generator_and_client):
     gen, client = generator_and_client
     tool_use_resp = make_tool_use_response()
@@ -108,7 +114,9 @@ def test_tool_use_response_triggers_second_api_call(generator_and_client):
     client.messages.create.side_effect = [tool_use_resp, final_resp]
 
     mock_tool_manager = MagicMock()
-    mock_tool_manager.execute_tool.return_value = "[MCP Course - Lesson 1]\nContent here."
+    mock_tool_manager.execute_tool.return_value = (
+        "[MCP Course - Lesson 1]\nContent here."
+    )
 
     result = gen.generate_response(
         "What is MCP?",
@@ -159,7 +167,9 @@ def test_tools_present_in_loop_api_calls(generator_and_client):
 def test_tool_manager_execute_tool_called_with_correct_args(generator_and_client):
     gen, client = generator_and_client
     client.messages.create.side_effect = [
-        make_tool_use_response(name="search_course_content", inp={"query": "test query"}),
+        make_tool_use_response(
+            name="search_course_content", inp={"query": "test query"}
+        ),
         make_text_response("Done"),
     ]
     mock_tool_manager = MagicMock()
@@ -185,6 +195,7 @@ def test_no_second_call_when_tool_manager_is_none(generator_and_client):
 # Sequential tool calling (up to 2 rounds)
 # ---------------------------------------------------------------------------
 
+
 def test_two_sequential_tool_calls_three_api_calls_total(generator_and_client):
     gen, client = generator_and_client
     client.messages.create.side_effect = [
@@ -194,7 +205,9 @@ def test_two_sequential_tool_calls_three_api_calls_total(generator_and_client):
     ]
     mock_tool_manager = MagicMock()
     mock_tool_manager.execute_tool.side_effect = ["outline result", "search result"]
-    result = gen.generate_response("q", tools=[{"name": "t"}], tool_manager=mock_tool_manager)
+    result = gen.generate_response(
+        "q", tools=[{"name": "t"}], tool_manager=mock_tool_manager
+    )
     assert client.messages.create.call_count == 3
     assert mock_tool_manager.execute_tool.call_count == 2
     assert result == "Combined answer"
@@ -209,7 +222,9 @@ def test_message_list_grows_correctly_across_two_rounds(generator_and_client):
     ]
     mock_tool_manager = MagicMock()
     mock_tool_manager.execute_tool.return_value = "result"
-    gen.generate_response("query", tools=[{"name": "t"}], tool_manager=mock_tool_manager)
+    gen.generate_response(
+        "query", tools=[{"name": "t"}], tool_manager=mock_tool_manager
+    )
 
     third_call_messages = client.messages.create.call_args_list[2][1]["messages"]
     assert len(third_call_messages) == 5
@@ -232,7 +247,9 @@ def test_early_exit_when_end_turn_after_round_1(generator_and_client):
     ]
     mock_tool_manager = MagicMock()
     mock_tool_manager.execute_tool.return_value = "result"
-    result = gen.generate_response("q", tools=[{"name": "t"}], tool_manager=mock_tool_manager)
+    result = gen.generate_response(
+        "q", tools=[{"name": "t"}], tool_manager=mock_tool_manager
+    )
     assert client.messages.create.call_count == 2
     assert mock_tool_manager.execute_tool.call_count == 1
     assert result == "Final"
@@ -246,7 +263,9 @@ def test_tool_execution_error_handled_gracefully(generator_and_client):
     ]
     mock_tool_manager = MagicMock()
     mock_tool_manager.execute_tool.side_effect = Exception("DB error")
-    result = gen.generate_response("q", tools=[{"name": "t"}], tool_manager=mock_tool_manager)
+    result = gen.generate_response(
+        "q", tools=[{"name": "t"}], tool_manager=mock_tool_manager
+    )
     assert client.messages.create.call_count == 2
     assert result == "Fallback response"
 
@@ -260,7 +279,9 @@ def test_max_rounds_respected(generator_and_client):
     ]
     mock_tool_manager = MagicMock()
     mock_tool_manager.execute_tool.return_value = "result"
-    result = gen.generate_response("q", tools=[{"name": "t"}], tool_manager=mock_tool_manager)
+    result = gen.generate_response(
+        "q", tools=[{"name": "t"}], tool_manager=mock_tool_manager
+    )
     assert client.messages.create.call_count == 3
     assert mock_tool_manager.execute_tool.call_count == 2
     assert result == ""
@@ -269,6 +290,7 @@ def test_max_rounds_respected(generator_and_client):
 # ---------------------------------------------------------------------------
 # Bug 1 regression: invalid model raises exception (not swallowed)
 # ---------------------------------------------------------------------------
+
 
 def test_invalid_model_raises_exception(generator_and_client):
     """
